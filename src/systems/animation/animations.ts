@@ -1,9 +1,12 @@
 import type { AnimationClip } from "./types";
+import walk0 from "../../assets/sprites/walk/walk_0.png";
+import walk1 from "../../assets/sprites/walk/walk_1.png";
+import walk2 from "../../assets/sprites/walk/walk_2.png";
+import walk3 from "../../assets/sprites/walk/walk_3.png";
 
 /**
- * MVP 动画库
- * 所有动画基于 CSS transform，不需要精灵图。
- * 后续可替换为真实帧动画。
+ * 动画库
+ * 支持纯 CSS transform 动画和精灵图帧动画。
  */
 export const CLIPS: Record<string, AnimationClip> = {
   idle: {
@@ -58,6 +61,17 @@ export const CLIPS: Record<string, AnimationClip> = {
       { transform: "translateY(0px)", duration: 120 },
       { transform: "translateY(-4px)", duration: 100 },
       { transform: "translateY(0px)", duration: 80 },
+    ],
+  },
+
+  walk: {
+    name: "walk",
+    loop: true,
+    frames: [
+      { transform: "", sprite: walk0, duration: 120 },
+      { transform: "", sprite: walk1, duration: 120 },
+      { transform: "", sprite: walk2, duration: 120 },
+      { transform: "", sprite: walk3, duration: 120 },
     ],
   },
 };

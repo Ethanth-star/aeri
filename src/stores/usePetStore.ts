@@ -5,6 +5,7 @@ interface PetState {
   position: { x: number; y: number };
   controller: AnimationController;
   currentTransform: string;
+  currentSprite: string | undefined;
   currentAnimation: string;
   /** 距上次自主动作过去了多少 ms */
   idleTimer: number;
@@ -23,16 +24,18 @@ export const usePetStore = create<PetState & PetActions>((set, get) => ({
   position: { x: 0, y: 0 },
   controller: new AnimationController(),
   currentTransform: "",
+  currentSprite: undefined,
   currentAnimation: "idle",
   idleTimer: 0,
   joy: 0.5,
 
   tick: (dt: number) => {
     const { controller, idleTimer } = get();
-    const transform = controller.tick(dt);
+    const result = controller.tick(dt);
     const anim = controller.getState().currentClip;
     set({
-      currentTransform: transform,
+      currentTransform: result.transform,
+      currentSprite: result.sprite,
       currentAnimation: anim,
       idleTimer: idleTimer + dt,
     });
