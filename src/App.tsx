@@ -8,11 +8,11 @@ import SpeechBubble from "./components/overlays/SpeechBubble";
 import ChatInput from "./components/overlays/ChatInput";
 import "./App.css";
 
-const TICK_RATE = 30;
-const TICK_INTERVAL = 1000 / TICK_RATE;
+const TICK_RATE = 30;// 目标每秒 30 帧
+const TICK_INTERVAL = 1000 / TICK_RATE;// 每帧大约 33.3 毫秒
 
 export default function App() {
-  const lastTimeRef = useRef(performance.now());
+  const lastTimeRef = useRef(performance.now());//是浏览器提供的高精度时间，精确到微秒，专门用来做动画计算。
   const accumulatorRef = useRef(0);
 
   useEffect(() => {
