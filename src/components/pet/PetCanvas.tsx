@@ -6,31 +6,23 @@ export default function PetCanvas() {
   const currentAnimation = usePetStore((s) => s.currentAnimation);
 
   return (
-    <div
+    <img
+      src={aeriImg}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
+        width: 70,
+        height: 70,
+        objectFit: "contain",
+        transform: currentTransform,
+        transition: currentAnimation === "idle"
+          ? "transform 0.3s ease"
+          : "transform 0.08s ease",
+        imageRendering: "pixelated",
+        display: "block",
+        margin: "10px auto 0",
       }}
-    >
-      <img
-        src={aeriImg}
-        draggable={false}
-        onDragStart={(e) => e.preventDefault()}
-        style={{
-          width: 70,
-          height: 70,
-          objectFit: "contain",
-          transform: currentTransform,
-          transition: currentAnimation === "idle"
-            ? "transform 0.3s ease"
-            : "transform 0.08s ease",
-          imageRendering: "pixelated",
-        }}
-        alt="Aeri"
-      />
-    </div>
+      alt="Aeri"
+    />
   );
 }

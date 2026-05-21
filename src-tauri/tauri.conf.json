@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "aeri",
-        "width": 120,
-        "height": 120,
+        "width": 320,
+        "height": 300,
         "shadow": false,
         "dragDropEnabled": true,
         "resizable": false,

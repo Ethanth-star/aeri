@@ -6,13 +6,14 @@ import PetCanvas from "./components/pet/PetCanvas";
 import DragLayer from "./components/pet/DragLayer";
 import SpeechBubble from "./components/overlays/SpeechBubble";
 import ChatInput from "./components/overlays/ChatInput";
+import SettingsPanel from "./components/overlays/SettingsPanel";
 import "./App.css";
 
-const TICK_RATE = 30;// 目标每秒 30 帧
-const TICK_INTERVAL = 1000 / TICK_RATE;// 每帧大约 33.3 毫秒
+const TICK_RATE = 30;
+const TICK_INTERVAL = 1000 / TICK_RATE;
 
 export default function App() {
-  const lastTimeRef = useRef(performance.now());//是浏览器提供的高精度时间，精确到微秒，专门用来做动画计算。
+  const lastTimeRef = useRef(performance.now());
   const accumulatorRef = useRef(0);
 
   useEffect(() => {
@@ -27,10 +28,8 @@ export default function App() {
         const pet = usePetStore.getState();
         const chat = useChatStore.getState();
 
-        // 1. 推进动画
         pet.tick(TICK_INTERVAL);
 
-        // 2. 自主动作（非对话中）
         if (!chat.isStreaming) {
           const action = tickBehavior(pet.idleTimer, { joy: pet.joy });
           if (action) {
@@ -49,12 +48,19 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <div style={{ position: "relative" }}>
-        <SpeechBubble />
-        <PetCanvas />
-        <ChatInput />
+      <div className="pet-layout">
+        <div className="bubble-area">
+          <SpeechBubble />
+        </div>
+        <div className="pet-area">
+          <PetCanvas />
+          <DragLayer />
+        </div>
+        <div className="toolbar">
+          <ChatInput />
+          <SettingsPanel />
+        </div>
       </div>
-      <DragLayer />
     </div>
   );
 }

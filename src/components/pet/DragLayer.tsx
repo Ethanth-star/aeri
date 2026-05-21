@@ -8,31 +8,19 @@ export default function DragLayer() {
 
   return (
     <div
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        getCurrentWindow().startDragging();
+      }}
+      onClick={() => {
+        if (!isStreaming) toggleInput();
+      }}
       style={{
         position: "absolute",
         inset: 0,
-        // 透明区域可穿透，但图片区域接收鼠标
-        pointerEvents: "none",
+        cursor: showInput ? "pointer" : "grab",
       }}
-    >
-      {/* 拖动区域：覆盖在图片上方 */}
-      <div
-        onMouseDown={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          getCurrentWindow().startDragging();
-        }}
-        onClick={() => {
-          // 仅在非流式状态下打开输入框
-          if (!isStreaming) toggleInput();
-        }}
-        style={{
-          position: "absolute",
-          inset: 0,
-          pointerEvents: "auto",
-          cursor: showInput ? "pointer" : "grab",
-        }}
-      />
-    </div>
+    />
   );
 }
