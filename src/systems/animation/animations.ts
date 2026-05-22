@@ -3,6 +3,14 @@ import walk0 from "../../assets/sprites/walk/walk_0.png";
 import walk1 from "../../assets/sprites/walk/walk_1.png";
 import walk2 from "../../assets/sprites/walk/walk_2.png";
 import walk3 from "../../assets/sprites/walk/walk_3.png";
+import bounce0 from "../../assets/sprites/bounce/bounce_0.png";
+import bounce1 from "../../assets/sprites/bounce/bounce_1.png";
+import bounce2 from "../../assets/sprites/bounce/bounce_2.png";
+import bounce3 from "../../assets/sprites/bounce/bounce_3.png";
+import bounce4 from "../../assets/sprites/bounce/bounce_4.png";
+import bounce5 from "../../assets/sprites/bounce/bounce_5.png";
+import bounce6 from "../../assets/sprites/bounce/bounce_6.png";
+import bounce7 from "../../assets/sprites/bounce/bounce_7.png";
 
 /**
  * 动画库
@@ -56,11 +64,14 @@ export const CLIPS: Record<string, AnimationClip> = {
     name: "bounce",
     loop: false,
     frames: [
-      { transform: "translateY(0px)", duration: 80 },
-      { transform: "translateY(-12px)", duration: 200 },
-      { transform: "translateY(0px)", duration: 120 },
-      { transform: "translateY(-4px)", duration: 100 },
-      { transform: "translateY(0px)", duration: 80 },
+      { transform: "", sprite: bounce0, duration: 80 },
+      { transform: "", sprite: bounce1, duration: 80 },
+      { transform: "", sprite: bounce2, duration: 80 },
+      { transform: "", sprite: bounce3, duration: 80 },
+      { transform: "", sprite: bounce4, duration: 80 },
+      { transform: "", sprite: bounce5, duration: 80 },
+      { transform: "", sprite: bounce6, duration: 80 },
+      { transform: "", sprite: bounce7, duration: 80 },
     ],
   },
 

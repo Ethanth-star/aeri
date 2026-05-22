@@ -7,6 +7,8 @@ interface PetState {
   currentTransform: string;
   currentSprite: string | undefined;
   currentAnimation: string;
+  /** 当前动画已播放的 ms 数 */
+  animationElapsed: number;
   /** 距上次自主动作过去了多少 ms */
   idleTimer: number;
   joy: number;
@@ -26,24 +28,26 @@ export const usePetStore = create<PetState & PetActions>((set, get) => ({
   currentTransform: "",
   currentSprite: undefined,
   currentAnimation: "idle",
+  animationElapsed: 0,
   idleTimer: 0,
   joy: 0.5,
 
   tick: (dt: number) => {
-    const { controller, idleTimer } = get();
+    const { controller, idleTimer, animationElapsed } = get();
     const result = controller.tick(dt);
     const anim = controller.getState().currentClip;
     set({
       currentTransform: result.transform,
       currentSprite: result.sprite,
       currentAnimation: anim,
+      animationElapsed: animationElapsed + dt,
       idleTimer: idleTimer + dt,
     });
   },
 
   playAnimation: (name: string) => {
     get().controller.play(name);
-    set({ idleTimer: 0 });
+    set({ idleTimer: 0, animationElapsed: 0 });
   },
 
   setPosition: (pos) => set({ position: pos }),

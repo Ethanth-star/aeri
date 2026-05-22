@@ -32,7 +32,7 @@ export default function PetCanvas() {
           height: 70,
           objectFit: "contain",
           transform: currentTransform,
-          transition: currentAnimation === "walk"
+          transition: currentAnimation === "walk" || currentAnimation === "bounce"
             ? "none"
             : currentAnimation === "idle"
               ? "transform 0.3s ease"
