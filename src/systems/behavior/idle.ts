@@ -16,6 +16,7 @@ const IDLE_ACTIONS: IdleActionResult[] = [
   { animation: "bounce", duration: 3000 },
   { animation: "happy", duration: 5000 },
   { animation: "thinking", duration: 4000 },
+  { animation: "walk", duration: 4000 },
 ];
 
 /**

@@ -1,4 +1,4 @@
-import type { AnimationClip, AnimationState } from "./types";
+import type { AnimationClip, AnimationState, TickResult } from "./types";
 import { CLIPS } from "./animations";
 
 export class AnimationController {
@@ -28,10 +28,10 @@ export class AnimationController {
     };
   }
 
-  /** 每帧调用，推进动画时间。返回当前帧的 CSS transform 字符串 */
-  tick(dt: number): string {
+  /** 每帧调用，推进动画时间。返回当前帧的 TickResult */
+  tick(dt: number): TickResult {
     const clip = this.clips[this.state.currentClip];
-    if (!clip) return "";
+    if (!clip) return { transform: "" };
 
     this.state.frameTimer += dt;
     const frame = clip.frames[this.state.currentFrame];
@@ -53,7 +53,11 @@ export class AnimationController {
       }
     }
 
-    return clip.frames[this.state.currentFrame].transform;
+    const result: TickResult = {
+      transform: clip.frames[this.state.currentFrame].transform,
+      sprite: clip.frames[this.state.currentFrame].sprite,
+    };
+    return result;
   }
 
   getState(): AnimationState {

@@ -1,8 +1,4 @@
-/**
- * MVP AI 对话
- * 调用 OpenAI 兼容 API，支持流式输出。
- * 后续可替换 provider 或走 Rust 代理。
- */
+import { invoke } from "@tauri-apps/api/core";
 
 export interface ChatConfig {
   baseUrl: string;
@@ -15,7 +11,7 @@ export interface ChatMessage {
   content: string;
 }
 
-const SYSTEM_PROMPT = `你是一只可爱的桌面宠物小狗，名字叫 Aeri。
+const BASE_SYSTEM_PROMPT = `你是一只可爱的桌面宠物小狗，名字叫 Aeri。
 你的特点：
 - 活泼、温暖、偶尔犯傻
 - 回复简短（1~3 句话）
@@ -25,14 +21,32 @@ const SYSTEM_PROMPT = `你是一只可爱的桌面宠物小狗，名字叫 Aeri�
 
 请以 Aeri 的身份回复。`;
 
+async function buildSystemPrompt(city?: string): Promise<string> {
+  let contextText = "";
+  try {
+    contextText = await invoke<string>("get_context_text", { city: city || null });
+  } catch {
+    // 上下文获取失败时静默降级，不影响对话
+  }
+
+  if (contextText) {
+    return `${BASE_SYSTEM_PROMPT}\n\n当前环境信息：\n${contextText}\n\n请根据环境信息自然地回复，比如根据时段打招呼、根据天气关心主人。`;
+  }
+
+  return BASE_SYSTEM_PROMPT;
+}
+
 export async function* streamChat(
   config: ChatConfig,
   history: ChatMessage[],
   userMessage: string,
+  city?: string,
 ): AsyncGenerator<string> {
+  const systemPrompt = await buildSystemPrompt(city);
+
   const messages: ChatMessage[] = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...history.slice(-10), // 只保留最近 10 条上下文
+    { role: "system", content: systemPrompt },
+    ...history.slice(-10),
     { role: "user", content: userMessage },
   ];
 
