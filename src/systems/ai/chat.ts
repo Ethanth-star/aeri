@@ -9,6 +9,8 @@ export interface ChatConfig {
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
+  id?: string;
+  timestamp?: number;
 }
 
 const BASE_SYSTEM_PROMPT = `你是一只可爱的桌面宠物小狗，名字叫 Aeri。
@@ -21,7 +23,11 @@ const BASE_SYSTEM_PROMPT = `你是一只可爱的桌面宠物小狗，名字叫 
 
 请以 Aeri 的身份回复。`;
 
-async function buildSystemPrompt(city?: string): Promise<string> {
+import { useHardwareStore } from "../../stores/useHardwareStore";
+import { useMemoryStore } from "../../stores/useMemoryStore";
+import { formatMemoriesForPrompt } from "../memory/engine";
+
+async function buildSystemPrompt(city?: string, userMessage?: string): Promise<string> {
   let contextText = "";
   try {
     contextText = await invoke<string>("get_context_text", { city: city || null });
@@ -29,8 +35,35 @@ async function buildSystemPrompt(city?: string): Promise<string> {
     // 上下文获取失败时静默降级，不影响对话
   }
 
+  // 物理硬件传感器环境补充
+  const hardwareSensor = useHardwareStore.getState().sensorData;
+  const hwParts: string[] = [];
+  if (hardwareSensor.temperature !== null) {
+    hwParts.push(`房间实测温度：${hardwareSensor.temperature}°C`);
+  }
+  if (hardwareSensor.lightLevel !== null) {
+    const lightDesc = ["极暗(关灯)", "微光", "正常室内", "明亮", "很亮", "强光"][hardwareSensor.lightLevel] || `${hardwareSensor.lightLevel}/5`;
+    hwParts.push(`房间光照度：${lightDesc}`);
+  }
+  if (hwParts.length > 0) {
+    contextText = contextText ? `${contextText}\n${hwParts.join("\n")}` : hwParts.join("\n");
+  }
+
+  // 记忆档案库相关记忆注入
+  const memoryStore = useMemoryStore.getState();
+  if (memoryStore.enabled) {
+    const relevantMemories = memoryStore.getRelevantMemories(userMessage || "");
+    if (relevantMemories.length > 0) {
+      memoryStore.recordAccess(relevantMemories.map((m) => m.id));
+      const memPrompt = formatMemoriesForPrompt(relevantMemories);
+      if (memPrompt) {
+        contextText = contextText ? `${contextText}\n\n${memPrompt}` : memPrompt;
+      }
+    }
+  }
+
   if (contextText) {
-    return `${BASE_SYSTEM_PROMPT}\n\n当前环境信息：\n${contextText}\n\n请根据环境信息自然地回复，比如根据时段打招呼、根据天气关心主人。`;
+    return `${BASE_SYSTEM_PROMPT}\n\n当前背景与记忆信息：\n${contextText}\n\n请根据以上背景和记忆信息自然地回复，体现你对主人的了解与熟悉。`;
   }
 
   return BASE_SYSTEM_PROMPT;
@@ -42,7 +75,7 @@ export async function* streamChat(
   userMessage: string,
   city?: string,
 ): AsyncGenerator<string> {
-  const systemPrompt = await buildSystemPrompt(city);
+  const systemPrompt = await buildSystemPrompt(city, userMessage);
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
@@ -50,7 +83,10 @@ export async function* streamChat(
     { role: "user", content: userMessage },
   ];
 
-  const response = await fetch(`${config.baseUrl}/chat/completions`, {
+  const baseUrl = (config.baseUrl || "https://api.deepseek.com").replace(/\/+$/, "");
+  const endpoint = baseUrl.endsWith("/chat/completions") ? baseUrl : `${baseUrl}/chat/completions`;
+
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

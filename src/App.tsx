@@ -1,14 +1,19 @@
 import { useEffect, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { usePetStore } from "./stores/usePetStore";
+import { useHardwareStore } from "./stores/useHardwareStore";
+import { useWaterStore } from "./stores/useWaterStore";
 import { useChatStore } from "./stores/useChatStore";
+import { useMemoryStore } from "./stores/useMemoryStore";
+import { useProfileStore } from "./stores/useProfileStore";
 import { tickBehavior } from "./systems/behavior/idle";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { PhysicalPosition } from "@tauri-apps/api/dpi";
 import PetCanvas from "./components/pet/PetCanvas";
 import DragLayer from "./components/pet/DragLayer";
 import SpeechBubble from "./components/overlays/SpeechBubble";
 import ChatInput from "./components/overlays/ChatInput";
 import SettingsPanel from "./components/overlays/SettingsPanel";
+import MemoryPalaceModal from "./components/overlays/MemoryPalaceModal";
+import ProfileModal from "./components/overlays/ProfileModal";
 import "./App.css";
 
 const TICK_RATE = 30;
@@ -17,8 +22,10 @@ const TICK_INTERVAL = 1000 / TICK_RATE;
 export default function App() {
   const lastTimeRef = useRef(performance.now());
   const accumulatorRef = useRef(0);
-  const bounceStartRef = useRef<{ x: number; y: number } | null>(null);
   const prevAnimationRef = useRef("idle");
+
+  const showSettings = useChatStore((s) => s.showSettings);
+  const showInput = useChatStore((s) => s.showInput);
 
   useEffect(() => {
     const loop = (now: number) => {
@@ -30,55 +37,62 @@ export default function App() {
         accumulatorRef.current -= TICK_INTERVAL;
 
         const pet = usePetStore.getState();
-        const chat = useChatStore.getState();
 
-        pet.tick(TICK_INTERVAL);
+        // 1. 情绪衰减 + 动画推进 + 喝水计时
+        pet.tickStore(TICK_INTERVAL);
+        useWaterStore.getState().tickWater(TICK_INTERVAL);
 
-        const currentAnim = usePetStore.getState().currentAnimation;
+        const currentAnim = pet.currentClipName;
 
-        // 1.5 走路时移动窗口
-        if (currentAnim === "walk") {
-          try {
-            const win = getCurrentWindow();
-            win.outerPosition().then((pos) => {
-              win.setPosition(new PhysicalPosition(pos.x + 2, pos.y));
-            }).catch(() => {});
-          } catch {}
-        }
+        // 2. 界面保护锁：如果任何弹窗/气泡/交互界面处于开启状态，界面绝不跟着本体位移
+        const chatStore = useChatStore.getState();
+        const memoryStore = useMemoryStore.getState();
+        const profileStore = useProfileStore.getState();
+        const isUIBusy =
+          chatStore.showSettings ||
+          chatStore.showInput ||
+          Boolean(chatStore.currentReply) ||
+          chatStore.isStreaming ||
+          memoryStore.showMemoryPalace ||
+          profileStore.showProfileModal ||
+          pet.currentState !== "IDLE";
 
-        // 1.6 跳跃时抛物线移动窗口
-        if (currentAnim === "bounce") {
-          const BOUNCE_DURATION = 640; // 8 frames * 80ms
-          const BOUNCE_DX = 120;
-          const BOUNCE_MAX_H = 80;
-
-          if (prevAnimationRef.current !== "bounce") {
-            try {
-              getCurrentWindow().outerPosition().then((pos) => {
-                bounceStartRef.current = { x: pos.x, y: pos.y };
-              }).catch(() => {});
-            } catch {}
+        // 3. 仅在纯净空闲态进行窗口位移 (跨多显示器无缝行走 + 边缘碰撞反弹掉头)
+        if (!isUIBusy) {
+          if (currentAnim === "walk") {
+            invoke<{ x: number; y: number; direction: number; hit_edge: boolean }>("step_pet_window", {
+              dx: 3,
+              dy: 0,
+              direction: pet.facingDirection,
+            })
+              .then((res) => {
+                if (res.direction !== pet.facingDirection) {
+                  pet.setFacingDirection(res.direction as 1 | -1);
+                }
+              })
+              .catch(() => {});
           }
 
-          const start = bounceStartRef.current;
-          if (start) {
-            const elapsed = usePetStore.getState().animationElapsed;
-            const progress = Math.min(elapsed / BOUNCE_DURATION, 1);
-            const xOffset = Math.round(BOUNCE_DX * progress);
-            const yOffset = -Math.round(BOUNCE_MAX_H * 4 * progress * (1 - progress));
-            try {
-              getCurrentWindow().setPosition(
-                new PhysicalPosition(start.x + xOffset, start.y + yOffset)
-              );
-            } catch {}
+          if (currentAnim === "bounce") {
+            invoke<{ x: number; y: number; direction: number; hit_edge: boolean }>("step_pet_window", {
+              dx: 5,
+              dy: 0,
+              direction: pet.facingDirection,
+            })
+              .then((res) => {
+                if (res.direction !== pet.facingDirection) {
+                  pet.setFacingDirection(res.direction as 1 | -1);
+                }
+              })
+              .catch(() => {});
           }
         }
 
         prevAnimationRef.current = currentAnim;
 
-        // 2. 自主动作（非对话中）
-        if (!chat.isStreaming) {
-          const action = tickBehavior(pet.idleTimer, { joy: pet.joy });
+        // 4. 自主动作 —— 仅在 IDLE 且无弹窗干扰时允许随机触发
+        if (pet.currentState === "IDLE" && !isUIBusy) {
+          const action = tickBehavior(pet.idleTimer, pet.emotion);
           if (action) {
             pet.playAnimation(action);
             pet.setIdleTimer(0);
@@ -89,25 +103,47 @@ export default function App() {
       rafRef.current = requestAnimationFrame(loop);
     };
 
+    let unlistenHw: (() => void) | null = null;
+    useHardwareStore.getState().initListeners().then((unlisten) => {
+      unlistenHw = unlisten;
+    }).catch(() => {});
+
     const rafRef = { current: requestAnimationFrame(loop) };
-    return () => cancelAnimationFrame(rafRef.current);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      if (unlistenHw) unlistenHw();
+    };
   }, []);
 
   return (
     <div className="app-container">
       <div className="pet-layout">
+        {/* 顶部对话气泡 */}
         <div className="bubble-area">
           <SpeechBubble />
         </div>
-        <div className="pet-area">
-          <PetCanvas />
-          <DragLayer />
-        </div>
-        <div className="toolbar">
-          <ChatInput />
-          <SettingsPanel />
+
+        {/* 鼠标互动专属集群：仅当鼠标悬停在小狗身上或工具栏时显现 */}
+        <div className="pet-interactive-cluster">
+          {/* 核心小狗与拖拽层 */}
+          <div className="pet-area">
+            <PetCanvas />
+            <DragLayer />
+          </div>
+
+          {/* 悬浮工具栏 (平时隐藏，鼠标移入小狗本体时浮现) */}
+          <div className={`toolbar ${showSettings || showInput ? "is-active" : ""}`}>
+            <ChatInput />
+            <SettingsPanel />
+          </div>
         </div>
       </div>
+
+      {/* 记忆宫殿浮层 */}
+      <MemoryPalaceModal />
+
+      {/* 个人档案与伴侣信息浮层 */}
+      <ProfileModal />
     </div>
   );
 }

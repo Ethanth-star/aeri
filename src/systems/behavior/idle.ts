@@ -1,36 +1,80 @@
-/**
- * MVP 自主行为系统
- * 简单的定时随机触发，不引入复杂状态机。
- */
+import type { EmotionState } from "../emotion/types";
 
-interface EmotionState {
-  joy: number; // 0 ~ 1
-}
-
-interface IdleActionResult {
+interface ActionWeights {
   animation: string;
-  duration: number; // ms，动画播放完后保持多久再触发下一个
+  weights: Partial<Record<keyof EmotionState, number>>;
 }
 
-const IDLE_ACTIONS: IdleActionResult[] = [
-  { animation: "bounce", duration: 3000 },
-  { animation: "happy", duration: 5000 },
-  { animation: "thinking", duration: 4000 },
-  { animation: "walk", duration: 4000 },
+const ACTION_WEIGHTS: ActionWeights[] = [
+  { animation: "bounce",       weights: { joy: 0.5, energy: 0.4 } },
+  { animation: "walk",         weights: { energy: 0.3, curiosity: 0.3, boredom: -0.3 } },
+  { animation: "happy",        weights: { joy: 0.6, energy: 0.2 } },
+  { animation: "thinking",     weights: { curiosity: 0.5 } },
+  { animation: "ear_droop",    weights: { sadness: 0.5, energy: -0.2 } },
+  { animation: "wag_tail",     weights: { joy: 0.4, affection: 0.2 } },
+  { animation: "excited",      weights: { joy: 0.5, energy: 0.4, curiosity: 0.2 } },
+  { animation: "curious_look", weights: { curiosity: 0.5 } },
+  { animation: "shiver",       weights: { sadness: 0.4, energy: -0.1 } },
+  { animation: "stretch",      weights: { energy: -0.3, boredom: 0.2 } },
 ];
 
+const NOISE_FACTOR = 0.18;
+const SCORE_THRESHOLD = 0.05;
+const COOLDOWN_MS = 8000;
+
+let lastAction = "";
+let lastActionTime = 0;
+
 /**
- * 每次 tick 时调用，根据上次行为间隔决定是否触发新行为。
- * 返回要播放的动画名，或 null 表示什么都不做。
+ * 情绪加权随机选择器
+ * 对每个动作做情绪点积 + 噪声扰动，返回最高分动作。
+ * 含冷却机制：同一动作 8 秒内不会连续触发。
+ */
+export function pickBehavior(emotion: EmotionState): string {
+  let bestScore = -Infinity;
+  let bestAction = "idle";
+
+  for (const entry of ACTION_WEIGHTS) {
+    if (entry.animation === lastAction && Date.now() - lastActionTime < COOLDOWN_MS) {
+      continue;
+    }
+
+    let score = 0;
+    let hasWeight = false;
+    for (const [dim, weight] of Object.entries(entry.weights)) {
+      const key = dim as keyof EmotionState;
+      score += emotion[key] * (weight as number);
+      hasWeight = true;
+    }
+    if (!hasWeight) continue;
+
+    score += (Math.random() - 0.5) * NOISE_FACTOR;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestAction = entry.animation;
+    }
+  }
+
+  if (bestScore < SCORE_THRESHOLD) {
+    return "idle";
+  }
+
+  lastAction = bestAction;
+  lastActionTime = Date.now();
+  return bestAction;
+}
+
+/**
+ * 判断是否到达随机触发间隔。
+ * 返回要播放的动画名，或 null。
  */
 export function tickBehavior(
   timeSinceLastAction: number,
-  _emotion: EmotionState,
+  emotion: EmotionState,
 ): string | null {
-  // 每 5~10 秒随机一个行为
   const interval = 5000 + Math.random() * 5000;
   if (timeSinceLastAction < interval) return null;
 
-  const action = IDLE_ACTIONS[Math.floor(Math.random() * IDLE_ACTIONS.length)];
-  return action.animation;
+  return pickBehavior(emotion);
 }

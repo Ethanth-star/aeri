@@ -1,4 +1,4 @@
-import type { AnimationClip, AnimationState, TickResult } from "./types";
+import type { AnimationClip, AnimationState } from "./types";
 import { CLIPS } from "./animations";
 
 export class AnimationController {
@@ -28,36 +28,31 @@ export class AnimationController {
     };
   }
 
-  /** 每帧调用，推进动画时间。返回当前帧的 TickResult */
-  tick(dt: number): TickResult {
+  /** 每帧调用，推进动画时间。返回当前帧的图片路径 */
+  tick(dt: number): string {
     const clip = this.clips[this.state.currentClip];
-    if (!clip) return { transform: "" };
+    if (!clip || clip.frames.length === 0) return "";
 
     this.state.frameTimer += dt;
-    const frame = clip.frames[this.state.currentFrame];
 
-    // 推进到下一帧
-    while (this.state.frameTimer >= frame.duration) {
-      this.state.frameTimer -= frame.duration;
+    while (this.state.frameTimer >= clip.frames[this.state.currentFrame].duration) {
+      this.state.frameTimer -= clip.frames[this.state.currentFrame].duration;
       this.state.currentFrame++;
 
       if (this.state.currentFrame >= clip.frames.length) {
         if (clip.loop) {
           this.state.currentFrame = 0;
         } else {
-          // 非循环动画：播完后回到 idle
           this.state.currentFrame = clip.frames.length - 1;
-          this.play("idle");
-          return this.tick(0);
+          if (this.state.currentClip !== "idle") {
+            this.play("idle");
+            return this.tick(0);
+          }
         }
       }
     }
 
-    const result: TickResult = {
-      transform: clip.frames[this.state.currentFrame].transform,
-      sprite: clip.frames[this.state.currentFrame].sprite,
-    };
-    return result;
+    return clip.frames[this.state.currentFrame].imagePath;
   }
 
   getState(): AnimationState {

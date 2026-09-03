@@ -1,4 +1,5 @@
 import type { AnimationClip } from "./types";
+import puppyImg from "../../assets/images/puppy.png";
 import walk0 from "../../assets/sprites/walk/walk_0.png";
 import walk1 from "../../assets/sprites/walk/walk_1.png";
 import walk2 from "../../assets/sprites/walk/walk_2.png";
@@ -25,51 +26,44 @@ import bounce5 from "../../assets/sprites/bounce/bounce_5.png";
 import bounce6 from "../../assets/sprites/bounce/bounce_6.png";
 import bounce7 from "../../assets/sprites/bounce/bounce_7.png";
 
+/** 为缺失资产的动画生成占位帧序列（全部复用 puppy.png） */
+function placeholder(count: number, duration: number): { imagePath: string; duration: number }[] {
+  return Array.from({ length: count }, () => ({ imagePath: puppyImg, duration }));
+}
+
 /**
- * 动画库
- * 支持纯 CSS transform 动画和精灵图帧动画。
+ * 动画库 — 纯图片序列帧
+ * 已到位资产：idle（占位）、walk（17 帧）、bounce（8 帧）
+ * 其余动画暂用 puppy.png 占位，美术资产就位后替换 import 即可。
  */
 export const CLIPS: Record<string, AnimationClip> = {
   idle: {
     name: "idle",
     loop: true,
-    frames: [
-      { transform: "translateY(0px)", duration: 1200 },
-      { transform: "translateY(-3px)", duration: 1200 },
-      { transform: "translateY(0px)", duration: 1200 },
-      { transform: "translateY(3px)", duration: 1200 },
-    ],
+    frames: [{ imagePath: puppyImg, duration: 1000 }],
   },
 
-  happy: {
-    name: "happy",
-    loop: false,
-    frames: [
-      { transform: "translateY(0px) scale(1)", duration: 150 },
-      { transform: "translateY(-8px) scale(1.15)", duration: 150 },
-      { transform: "translateY(0px) scale(1)", duration: 150 },
-      { transform: "translateY(-4px) scale(1.1)", duration: 150 },
-      { transform: "translateY(0px) scale(1)", duration: 150 },
-    ],
-  },
-
-  thinking: {
-    name: "thinking",
+  walk: {
+    name: "walk",
     loop: true,
     frames: [
-      { transform: "rotate(0deg)", duration: 600 },
-      { transform: "rotate(-8deg)", duration: 600 },
-      { transform: "rotate(0deg)", duration: 600 },
-      { transform: "rotate(8deg)", duration: 600 },
-    ],
-  },
-
-  sleep: {
-    name: "sleep",
-    loop: true,
-    frames: [
-      { transform: "translateY(0px) scaleY(1)", duration: 2000 },
-      { transform: "translateY(2px) scaleY(0.92)", duration: 2000 },
+      { imagePath: walk0, duration: 120 },
+      { imagePath: walk1, duration: 120 },
+      { imagePath: walk2, duration: 120 },
+      { imagePath: walk3, duration: 120 },
+      { imagePath: walk4, duration: 120 },
+      { imagePath: walk5, duration: 120 },
+      { imagePath: walk6, duration: 120 },
+      { imagePath: walk7, duration: 120 },
+      { imagePath: walk8, duration: 120 },
+      { imagePath: walk9, duration: 120 },
+      { imagePath: walk10, duration: 120 },
+      { imagePath: walk11, duration: 120 },
+      { imagePath: walk12, duration: 120 },
+      { imagePath: walk13, duration: 120 },
+      { imagePath: walk14, duration: 120 },
+      { imagePath: walk15, duration: 120 },
+      { imagePath: walk16, duration: 120 },
     ],
   },
 
@@ -77,38 +71,70 @@ export const CLIPS: Record<string, AnimationClip> = {
     name: "bounce",
     loop: false,
     frames: [
-      { transform: "", sprite: bounce0, duration: 80 },
-      { transform: "", sprite: bounce1, duration: 80 },
-      { transform: "", sprite: bounce2, duration: 80 },
-      { transform: "", sprite: bounce3, duration: 80 },
-      { transform: "", sprite: bounce4, duration: 80 },
-      { transform: "", sprite: bounce5, duration: 80 },
-      { transform: "", sprite: bounce6, duration: 80 },
-      { transform: "", sprite: bounce7, duration: 80 },
+      { imagePath: bounce0, duration: 80 },
+      { imagePath: bounce1, duration: 80 },
+      { imagePath: bounce2, duration: 80 },
+      { imagePath: bounce3, duration: 80 },
+      { imagePath: bounce4, duration: 80 },
+      { imagePath: bounce5, duration: 80 },
+      { imagePath: bounce6, duration: 80 },
+      { imagePath: bounce7, duration: 80 },
     ],
   },
 
-  walk: {
-    name: "walk",
+  // ---- 以下动画美术资产尚未就位，使用 puppy.png 占位 ----
+
+  happy: {
+    name: "happy",
+    loop: false,
+    frames: placeholder(5, 150),
+  },
+
+  thinking: {
+    name: "thinking",
     loop: true,
-    frames: [
-      { transform: "", sprite: walk0, duration: 120 },
-      { transform: "", sprite: walk1, duration: 120 },
-      { transform: "", sprite: walk2, duration: 120 },
-      { transform: "", sprite: walk3, duration: 120 },
-      { transform: "", sprite: walk4, duration: 120 },
-      { transform: "", sprite: walk5, duration: 120 },
-      { transform: "", sprite: walk6, duration: 120 },
-      { transform: "", sprite: walk7, duration: 120 },
-      { transform: "", sprite: walk8, duration: 120 },
-      { transform: "", sprite: walk9, duration: 120 },
-      { transform: "", sprite: walk10, duration: 120 },
-      { transform: "", sprite: walk11, duration: 120 },
-      { transform: "", sprite: walk12, duration: 120 },
-      { transform: "", sprite: walk13, duration: 120 },
-      { transform: "", sprite: walk14, duration: 120 },
-      { transform: "", sprite: walk15, duration: 120 },
-      { transform: "", sprite: walk16, duration: 120 },
-    ],
+    frames: placeholder(4, 600),
+  },
+
+  sleep: {
+    name: "sleep",
+    loop: true,
+    frames: placeholder(2, 2000),
+  },
+
+  ear_droop: {
+    name: "ear_droop",
+    loop: true,
+    frames: placeholder(3, 400),
+  },
+
+  wag_tail: {
+    name: "wag_tail",
+    loop: true,
+    frames: placeholder(4, 150),
+  },
+
+  excited: {
+    name: "excited",
+    loop: false,
+    frames: placeholder(6, 120),
+  },
+
+  curious_look: {
+    name: "curious_look",
+    loop: false,
+    frames: placeholder(3, 300),
+  },
+
+  shiver: {
+    name: "shiver",
+    loop: true,
+    frames: placeholder(4, 200),
+  },
+
+  stretch: {
+    name: "stretch",
+    loop: false,
+    frames: placeholder(5, 250),
   },
 };

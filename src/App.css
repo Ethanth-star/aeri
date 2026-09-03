@@ -1,3 +1,27 @@
+:root {
+  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --primary-accent: #ff9f43;
+  --primary-gradient: linear-gradient(135deg, #ff9f43 0%, #ff793f 100%);
+  --secondary-accent: #6c5ce7;
+  --success-accent: #00b894;
+  --danger-accent: #ff7675;
+
+  --text-primary: #2d3436;
+  --text-secondary: #636e72;
+  --text-muted: #a4b0be;
+
+  --glass-bg: rgba(255, 255, 255, 0.82);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.65);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.85);
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --glass-blur: blur(18px);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 9999px;
+}
+
 html,
 body,
 #root {
@@ -9,6 +33,25 @@ body,
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+  font-family: var(--font-main);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 优雅细滚动条 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
 }
 
 .app-container {
@@ -18,6 +61,7 @@ body,
   justify-content: center;
   align-items: flex-end;
   background: transparent;
+  box-sizing: border-box;
 }
 
 .pet-layout {
@@ -26,10 +70,12 @@ body,
   align-items: center;
   width: 100%;
   height: 100%;
-  padding: 8px;
+  padding: 10px 12px 14px;
   box-sizing: border-box;
+  position: relative;
 }
 
+/* 气泡区域：占满剩余顶部高度，自然下沉停在小狗上方 */
 .bubble-area {
   flex: 1;
   display: flex;
@@ -37,118 +83,177 @@ body,
   justify-content: center;
   width: 100%;
   min-height: 0;
-  padding-bottom: 6px;
-  overflow: hidden;
+  padding-bottom: 8px;
+  z-index: 20;
 }
 
+/* 小狗与工具栏交互集群：紧密贴合小狗本体 */
+.pet-interactive-cluster {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  z-index: 25;
+}
+
+/* 小狗渲染区 */
 .pet-area {
   position: relative;
   width: 90px;
   height: 90px;
   flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
 }
 
+/* 底部浮动工具栏：常态下完全隐形，只有鼠标放到小狗身上时才浮现 */
 .toolbar {
   display: flex;
   justify-content: center;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   padding-top: 6px;
   flex-shrink: 0;
   position: relative;
+  z-index: 30;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* 核心：仅当鼠标真正移动到小狗本体(pet-interactive-cluster)或弹窗打开时，工具栏才优雅浮现 */
+.pet-interactive-cluster:hover .toolbar,
+.toolbar:hover,
+.toolbar.is-active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* 毛玻璃药丸圆形按钮 */
 .toolbar-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  border: var(--glass-border);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #666;
-  transition: background 0.15s, color 0.15s;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  outline: none;
 }
 
 .toolbar-btn:hover {
-  background: rgba(255, 255, 255, 0.95);
-  color: #ff9f43;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--primary-accent);
+  box-shadow: 0 6px 16px rgba(255, 159, 67, 0.25);
 }
 
 .toolbar-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
+/* 全屏遮罩层 */
 .settings-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 50px;
+  padding: 12px;
+  padding-bottom: 54px;
   z-index: 100;
+  box-sizing: border-box;
+  animation: fadeIn 0.18s ease-out;
 }
 
+/* 毛玻璃卡片主面板 */
 .settings-panel {
-  width: 280px;
-  background: rgba(255, 255, 255, 0.97);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  padding: 12px;
+  width: 100%;
+  max-width: 336px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  padding: 14px;
+  box-sizing: border-box;
+  animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-field {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   margin-bottom: 8px;
 }
 
 .settings-field span {
   font-size: 11px;
-  color: #888;
-  font-weight: 500;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .settings-field input {
   width: 100%;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  padding: 5px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
   font-size: 12px;
-  color: #333;
-  background: rgba(255, 255, 255, 0.8);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.9);
   outline: none;
   box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .settings-field input:focus {
-  border-color: #ff9f43;
+  border-color: var(--primary-accent);
+  box-shadow: 0 0 0 2px rgba(255, 159, 67, 0.2);
 }
 
+/* 浮岛输入对话框 (完全透明无灰遮罩) */
 .chat-input-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.2);
+  background: transparent;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 50px;
+  padding: 12px;
+  padding-bottom: 56px;
   z-index: 100;
+  box-sizing: border-box;
+  animation: fadeIn 0.15s ease-out;
 }
 
 .chat-input-bar {
   display: flex;
-  gap: 4px;
-  padding: 6px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  width: 280px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  width: 100%;
+  max-width: 320px;
+  box-sizing: border-box;
+  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .chat-input-field {
@@ -156,23 +261,73 @@ body,
   border: none;
   outline: none;
   background: transparent;
-  font-size: 13px;
-  color: #333;
+  font-size: 12.5px;
+  color: var(--text-primary);
   min-width: 0;
+  font-family: var(--font-main);
+}
+
+.chat-input-field::placeholder {
+  color: var(--text-muted);
 }
 
 .chat-input-send {
   border: none;
-  background: #ff9f43;
+  background: var(--primary-gradient);
   color: #fff;
-  border-radius: 6px;
-  padding: "2px 10px";
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 600;
   flex-shrink: 0;
-  padding: 4px 12px;
+  box-shadow: 0 2px 8px rgba(255, 159, 67, 0.35);
+  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  outline: none;
 }
 
 .chat-input-send:hover {
-  background: #e8892e;
+  transform: scale(1.04);
+  box-shadow: 0 4px 12px rgba(255, 159, 67, 0.45);
+}
+
+.chat-input-send:active {
+  transform: scale(0.96);
+}
+
+/* 动效关键帧 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes petShadowBreath {
+  0%, 100% {
+    transform: scaleX(1) scaleY(1);
+    opacity: 0.22;
+  }
+  50% {
+    transform: scaleX(0.85) scaleY(0.8);
+    opacity: 0.14;
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(0, 184, 148, 0);
+  }
 }
