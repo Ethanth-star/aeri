@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { invoke } from "@tauri-apps/api/core";
 import { useChatStore } from "../../stores/useChatStore";
 import { useProfileStore } from "../../stores/useProfileStore";
 import aeriImg from "../../assets/images/puppy.png";
@@ -101,8 +102,10 @@ export default function ChatInput() {
     <>
       <button
         className="toolbar-btn"
-        onClick={toggleInput}
-        title="与 Aeri 聊天"
+        onClick={() => {
+          invoke("toggle_chat_window").catch(() => toggleInput());
+        }}
+        title="与 Aeri 聊天 (开启独立聊天窗口)"
       >
         <svg
           width="16"
@@ -126,6 +129,9 @@ export default function ChatInput() {
             style={{
               background: "transparent",
               backdropFilter: "none",
+              alignItems: "flex-start",
+              paddingTop: 10,
+              paddingBottom: 110,
             }}
           >
             <div

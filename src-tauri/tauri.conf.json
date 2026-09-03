@@ -12,9 +12,10 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "aeri",
-        "width": 360,
-        "height": 420,
+        "width": 260,
+        "height": 280,
         "shadow": false,
         "dragDropEnabled": true,
         "resizable": false,
@@ -22,6 +23,20 @@
         "transparent": true,
         "decorations": false,
         "alwaysOnTop": true
+      },
+      {
+        "label": "chat",
+        "title": "Aeri 聊天",
+        "width": 360,
+        "height": 500,
+        "shadow": false,
+        "dragDropEnabled": true,
+        "resizable": true,
+        "fullscreen": false,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "visible": false
       }
     ],
     "security": {

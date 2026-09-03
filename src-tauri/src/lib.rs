@@ -158,6 +158,38 @@ fn get_hardware_status(state: tauri::State<'_, HardwareState>) -> HardwareStatus
     hardware::get_status(&state)
 }
 
+#[tauri::command]
+fn toggle_chat_window(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(chat_win) = app.get_webview_window("chat") {
+        let is_visible = chat_win.is_visible().unwrap_or(false);
+        if is_visible {
+            let _ = chat_win.hide();
+        } else {
+            // 将独立聊天窗口智能定位在小狗窗右侧或附近
+            if let Some(main_win) = app.get_webview_window("main") {
+                if let (Ok(main_pos), Ok(main_size)) = (main_win.outer_position(), main_win.outer_size()) {
+                    let target_x = main_pos.x + main_size.width as i32 + 8;
+                    let target_y = (main_pos.y - 120).max(10);
+                    let _ = chat_win.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: target_x, y: target_y }));
+                }
+            }
+            let _ = chat_win.show();
+            let _ = chat_win.set_focus();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn close_chat_window(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(chat_win) = app.get_webview_window("chat") {
+        let _ = chat_win.hide();
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -176,6 +208,8 @@ pub fn run() {
             disconnect_serial,
             send_hardware_cmd,
             get_hardware_status,
+            toggle_chat_window,
+            close_chat_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { usePetStore } from "./stores/usePetStore";
 import { useHardwareStore } from "./stores/useHardwareStore";
 import { useWaterStore } from "./stores/useWaterStore";
@@ -14,12 +15,39 @@ import ChatInput from "./components/overlays/ChatInput";
 import SettingsPanel from "./components/overlays/SettingsPanel";
 import MemoryPalaceModal from "./components/overlays/MemoryPalaceModal";
 import ProfileModal from "./components/overlays/ProfileModal";
+import StandaloneChatWindow from "./components/chat/StandaloneChatWindow";
 import "./App.css";
 
 const TICK_RATE = 30;
 const TICK_INTERVAL = 1000 / TICK_RATE;
 
 export default function App() {
+  const [windowLabel, setWindowLabel] = useState<string>("main");
+
+  // 识别当前 Webview 窗口角色 (main 为小狗桌面窗口，chat 为独立可拖拽聊天窗口)
+  useEffect(() => {
+    try {
+      const win = getCurrentWebviewWindow();
+      if (win?.label) {
+        setWindowLabel(win.label);
+      }
+    } catch {
+      // 浏览器环境运行回退
+    }
+  }, []);
+
+  // 如果是独立聊天窗口，直接渲染全功能毛玻璃拖拽聊天界面
+  if (windowLabel === "chat") {
+    return <StandaloneChatWindow />;
+  }
+
+  return <PetMainWindowView />;
+}
+
+/**
+ * Aeri 桌面小狗主窗口视图
+ */
+function PetMainWindowView() {
   const lastTimeRef = useRef(performance.now());
   const accumulatorRef = useRef(0);
   const prevAnimationRef = useRef("idle");
@@ -44,7 +72,7 @@ export default function App() {
 
         const currentAnim = pet.currentClipName;
 
-        // 2. 界面保护锁：如果任何弹窗/气泡/交互界面处于开启状态，界面绝不跟着本体位移
+        // 2. 界面保护锁：如果设置面板或浮层处于开启状态，界面绝不跟着本体位移
         const chatStore = useChatStore.getState();
         const memoryStore = useMemoryStore.getState();
         const profileStore = useProfileStore.getState();
@@ -104,9 +132,13 @@ export default function App() {
     };
 
     let unlistenHw: (() => void) | null = null;
-    useHardwareStore.getState().initListeners().then((unlisten) => {
-      unlistenHw = unlisten;
-    }).catch(() => {});
+    useHardwareStore
+      .getState()
+      .initListeners()
+      .then((unlisten) => {
+        unlistenHw = unlisten;
+      })
+      .catch(() => {});
 
     const rafRef = { current: requestAnimationFrame(loop) };
     return () => {
