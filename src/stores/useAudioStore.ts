@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { ttsEngine } from "../systems/audio/tts";
+import { useHardwareStore } from "./useHardwareStore";
+import { usePetStore } from "./usePetStore";
 
 interface AudioStoreState {
   ttsEnabled: boolean;
@@ -51,24 +53,55 @@ export const useAudioStore = create<AudioStoreState>()(
         const { ttsEnabled, volume, pitch, rate, voiceURI } = get();
         if (!ttsEnabled) return;
 
-        set({ isSpeaking: true });
-        ttsEngine.speak(
-          text,
-          {
-            volume,
-            pitch,
-            rate,
-            voiceURI: voiceURI || undefined,
-          },
-          () => {
-            set({ isSpeaking: false });
-          }
-        );
+        const clean = ttsEngine.cleanTextForSpeech(text);
+        if (!clean) return;
+
+        const hwStore = useHardwareStore.getState();
+        if (hwStore.connected) {
+          // 硬件已连接：优先通过 STC-B SM 接口硬件语音合成模块发声 (喇叭)
+          set({ isSpeaking: true });
+          try {
+            usePetStore.getState().changeState("TALKING");
+          } catch {}
+
+          hwStore.sendTTS(clean).finally(() => {
+            // 根据文本长度自适应恢复说话状态
+            const duration = Math.min(15000, Math.max(1500, clean.length * 250));
+            setTimeout(() => {
+              set({ isSpeaking: false });
+              try {
+                if (usePetStore.getState().currentState === "TALKING") {
+                  usePetStore.getState().changeState("IDLE");
+                }
+              } catch {}
+            }, duration);
+          });
+        } else {
+          // 硬件未连接：回退到电脑扬声器 Web Speech API 发声
+          set({ isSpeaking: true });
+          ttsEngine.speak(
+            clean,
+            {
+              volume,
+              pitch,
+              rate,
+              voiceURI: voiceURI || undefined,
+            },
+            () => {
+              set({ isSpeaking: false });
+            }
+          );
+        }
       },
 
       stop: () => {
         ttsEngine.stop();
         set({ isSpeaking: false });
+        try {
+          if (usePetStore.getState().currentState === "TALKING") {
+            usePetStore.getState().changeState("IDLE");
+          }
+        } catch {}
       },
     }),
     {

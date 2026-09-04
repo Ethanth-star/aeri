@@ -5,6 +5,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useChatStore } from "../../stores/useChatStore";
 import { useProfileStore } from "../../stores/useProfileStore";
 import { useAudioStore } from "../../stores/useAudioStore";
+import { useHardwareStore } from "../../stores/useHardwareStore";
 import ProfileModal from "../overlays/ProfileModal";
 import aeriImg from "../../assets/images/puppy.png";
 
@@ -61,6 +62,7 @@ export default function StandaloneChatWindow() {
 
   const ttsEnabled = useAudioStore((s) => s.ttsEnabled);
   const toggleTts = useAudioStore((s) => s.toggleTts);
+  const hardwareConnected = useHardwareStore((s) => s.connected);
 
   const [text, setText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -231,26 +233,61 @@ export default function StandaloneChatWindow() {
 
           {/* 右侧操作按钮 */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {/* 甜妹语音播报开关 */}
-            <button
-              onClick={toggleTts}
-              title={ttsEnabled ? "语音播报：甜妹音 (已开启，点击静音)" : "语音播报 (已静音，点击开启甜妹音)"}
-              style={{
-                background: ttsEnabled ? "rgba(255, 159, 67, 0.15)" : "rgba(0, 0, 0, 0.04)",
-                border: "none",
-                cursor: "pointer",
-                fontSize: 11,
-                color: ttsEnabled ? "#ff9f43" : "#a4b0be",
-                padding: "3px 6px",
-                borderRadius: 6,
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-              }}
-            >
-              <span>{ttsEnabled ? "🔊" : "🔇"}</span>
-              <span style={{ fontSize: 9.5, fontWeight: 600 }}>甜妹音</span>
-            </button>
+            {/* 语音播报开关与试听 */}
+            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <button
+                onClick={toggleTts}
+                title={
+                  ttsEnabled
+                    ? `语音播报 (${hardwareConnected ? "SM 硬件模块发声" : "电脑扬声器"}，点击静音)`
+                    : "语音播报 (已静音，点击开启)"
+                }
+                style={{
+                  background: ttsEnabled
+                    ? hardwareConnected
+                      ? "rgba(108, 92, 231, 0.15)"
+                      : "rgba(255, 159, 67, 0.15)"
+                    : "rgba(0, 0, 0, 0.04)",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  color: ttsEnabled
+                    ? hardwareConnected
+                      ? "#6c5ce7"
+                      : "#ff9f43"
+                    : "#a4b0be",
+                  padding: "3px 6px",
+                  borderRadius: 6,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <span>{ttsEnabled ? "🔊" : "🔇"}</span>
+                <span style={{ fontSize: 9.5, fontWeight: 600 }}>
+                  {hardwareConnected ? "SM硬件模块" : "甜妹音"}
+                </span>
+              </button>
+
+              {ttsEnabled && (
+                <button
+                  onClick={() => useAudioStore.getState().speak("主人好呀，我是Aeri！")}
+                  title={hardwareConnected ? "测试 SM 硬件语音模块发声" : "测试电脑扬声器发声"}
+                  style={{
+                    background: "rgba(0, 184, 148, 0.12)",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 9.5,
+                    color: "#00b894",
+                    padding: "3px 5px",
+                    borderRadius: 6,
+                    fontWeight: 600,
+                  }}
+                >
+                  试听
+                </button>
+              )}
+            </div>
 
             {/* 个人档案设置 */}
             <button

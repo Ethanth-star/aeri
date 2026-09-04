@@ -211,6 +211,71 @@ pub fn send_command(
     }
 }
 
+/// 发送 TTS 语音文本到 STC-B 单片机 (通过 SM 软件串口转交语音合成模块)
+pub fn send_tts_text(
+    state: &HardwareState,
+    text: &str,
+) -> Result<(), String> {
+    let handle_lock = state.handle.lock().map_err(|e| e.to_string())?;
+    if let Some(ref h) = *handle_lock {
+        // 自动附加音量最大控制标签 <V>4，确保声音清晰响亮
+        let full_text = if text.starts_with("<V>") {
+            text.to_string()
+        } else {
+            format!("<V>4{}", text)
+        };
+
+        // 1. 转为 GBK 编码
+        let (gbk_bytes, _, _) = encoding_rs::GBK.encode(&full_text);
+
+        // 限制最大长度不超过 130 字节 (模块缓冲区为 150 字节)
+        let bytes_to_send = if gbk_bytes.len() > 130 {
+            &gbk_bytes[..130]
+        } else {
+            &gbk_bytes[..]
+        };
+
+        let total_len = bytes_to_send.len() as u8;
+        if total_len == 0 {
+            return Ok(());
+        }
+
+        // 2. 发送 CMD_TTS_START (0x15)
+        let start_cs = ((0x15u16 + total_len as u16 + 0) & 0xFF) as u8;
+        h.writer_tx
+            .send(vec![FRAME_SYNC, 0x15, total_len, 0, start_cs])
+            .map_err(|e| format!("发送 TTS_START 失败: {}", e))?;
+        std::thread::sleep(Duration::from_millis(3));
+
+        // 3. 每 2 个字节分包发送 CMD_TTS_DATA (0x16)
+        let mut idx = 0;
+        while idx < bytes_to_send.len() {
+            let b1 = bytes_to_send[idx];
+            let b2 = if idx + 1 < bytes_to_send.len() {
+                bytes_to_send[idx + 1]
+            } else {
+                0
+            };
+            let cs = ((0x16u16 + b1 as u16 + b2 as u16) & 0xFF) as u8;
+            h.writer_tx
+                .send(vec![FRAME_SYNC, 0x16, b1, b2, cs])
+                .map_err(|e| format!("发送 TTS_DATA 失败: {}", e))?;
+            std::thread::sleep(Duration::from_millis(3));
+            idx += 2;
+        }
+
+        // 4. 发送 CMD_TTS_END (0x17)
+        let end_cs = ((0x17u16 + total_len as u16 + 0) & 0xFF) as u8;
+        h.writer_tx
+            .send(vec![FRAME_SYNC, 0x17, total_len, 0, end_cs])
+            .map_err(|e| format!("发送 TTS_END 失败: {}", e))?;
+
+        Ok(())
+    } else {
+        Err("串口未连接".to_string())
+    }
+}
+
 /// 获取当前连接状态
 pub fn get_status(state: &HardwareState) -> HardwareStatus {
     if let Ok(handle_lock) = state.handle.lock() {

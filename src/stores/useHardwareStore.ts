@@ -31,6 +31,7 @@ interface HardwareStoreActions {
   setLedMode: (mode: LedMode, mask?: number) => Promise<void>;
   playBeepPattern: (pattern: BeepPattern) => Promise<void>;
   sendSeg7: (d1: number, d2: number) => Promise<void>;
+  sendTTS: (text: string) => Promise<void>;
   initListeners: () => Promise<UnlistenFn>;
 }
 
@@ -129,6 +130,15 @@ export const useHardwareStore = create<HardwareStoreState & HardwareStoreActions
 
   sendSeg7: async (d1: number, d2: number) => {
     await get().sendCommand(HW_CMD.CMD_SEG, d1, d2);
+  },
+
+  sendTTS: async (text: string) => {
+    if (!get().connected) return;
+    try {
+      await invoke("send_hardware_tts", { text });
+    } catch (err) {
+      console.warn("发送硬件TTS异常:", err);
+    }
   },
 
   initListeners: async () => {

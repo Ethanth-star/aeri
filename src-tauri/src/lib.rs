@@ -159,6 +159,14 @@ fn get_hardware_status(state: tauri::State<'_, HardwareState>) -> HardwareStatus
 }
 
 #[tauri::command]
+fn send_hardware_tts(
+    state: tauri::State<'_, HardwareState>,
+    text: String,
+) -> Result<(), String> {
+    hardware::send_tts_text(&state, &text)
+}
+
+#[tauri::command]
 fn toggle_chat_window(app: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
     if let Some(chat_win) = app.get_webview_window("chat") {
@@ -207,6 +215,7 @@ pub fn run() {
             connect_serial,
             disconnect_serial,
             send_hardware_cmd,
+            send_hardware_tts,
             get_hardware_status,
             toggle_chat_window,
             close_chat_window,

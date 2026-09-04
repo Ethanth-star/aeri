@@ -3,8 +3,9 @@
  * Hardware: STC15F2K60S2 @ 11.0592MHz (STC-B 学习板)
  * Software: MySTC_B BSP v3.6
  * Protocol: 5-Byte Fixed Length Binary Frame (0xAA, CMD, DATA_H, DATA_L, CHECKSUM)
- * Features: Touch/Vib, Temp, Light, Nav/Keys, Ultrasonic, Hall Magnetic, Sys Perf & Uptime, LED, Beep
+ * Features: Touch/Vib, Temp, Light, Nav/Keys, Ultrasonic, Hall Magnetic, Sys Perf & Uptime, LED, Beep, TTS
  * Timing: Time-Division Multiplexed (TDM) UART Frame Dispatch (Zero Collision)
+ * TTS: SM 接口 S1 引脚 (P4.1 via ULN2003 反相开漏) 软件串口 9600bps -> CN-TTS 语音合成模块
  ********************************************************************************/
 
 #include "STC15F2K60S2.H"
@@ -22,10 +23,12 @@
 code unsigned long SysClock = 11059200; // 11.0592MHz 时钟频率
 
 // ---------------- 数码管译码表 ----------------
+#ifdef _displayer_H_
 code char decode_table[] = {
     0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f, 0x00, 0x08, 0x40, 0x01, 0x41, 0x48,
     0x3f|0x80, 0x06|0x80, 0x5b|0x80, 0x4f|0x80, 0x66|0x80, 0x6d|0x80, 0x7d|0x80, 0x07|0x80, 0x7f|0x80, 0x6f|0x80
 };
+#endif
 
 // ---------------- 协议常量定义 ----------------
 #define FRAME_SYNC          0xAA
@@ -45,6 +48,9 @@ code char decode_table[] = {
 #define CMD_BEEP            0x12  // 单音频蜂鸣
 #define CMD_SEG             0x13  // 数码管显示字符
 #define CMD_BEEP_PATTERN    0x14  // 预置音效模式
+#define CMD_TTS_START       0x15  // TTS 开始接收一段文本 (Data_H=预计长度)
+#define CMD_TTS_DATA        0x16  // TTS 文本数据包 (Data_H=字节1, Data_L=字节2)
+#define CMD_TTS_END         0x17  // TTS 结束并开始播放 (Data_H=总字节数)
 
 // ---------------- LED 模式枚举 ----------------
 #define LED_MODE_IDLE       0x00  // 单灯游走
@@ -55,6 +61,67 @@ code char decode_table[] = {
 #define LED_MODE_SAD        0x05  // 左侧 3 灯常暗
 #define LED_MODE_EXCITED    0x06  // 极速流水灯
 #define LED_MODE_CUSTOM     0x07  // 自定义 8 位掩码
+
+// ================ SM 接口软件串口 TTS 驱动 ================
+// SM 接口对应单片机 P4 口引脚，经过板载 ULN2003 达林顿管阵列：
+// S1 = P4.1, S2 = P4.2, S3 = P4.3, S4 = P4.4
+// ULN2003 为反相开漏输出：
+// MCU 输出 1 -> ULN2003 导通拉低 -> SM 引脚输出 LOW (0V)
+// MCU 输出 0 -> ULN2003 截止断开 -> SM 引脚由上拉电阻/模块内部上拉到 HIGH (5V)
+
+sbit TTS_PIN = P4^1;  // SM 接口 S1 脚 (MCU P4.1)，用于 TXD 发送给语音模块 RX
+sbit SM_S2   = P4^2;  // SM 接口 S2 脚 (MCU P4.2)
+sbit SM_S3   = P4^3;  // SM 接口 S3 脚 (MCU P4.3)
+sbit SM_S4   = P4^4;  // SM 接口 S4 脚 (MCU P4.4)
+
+// 11.0592MHz 下 9600bps 单位延时 (104.17us = 1152 机器周期)
+// 1T 8051 循环执行 DJNZ: (228 - 1) * 5 + 4 + 开销 ≈ 1153 周期 (误差 0.08%)
+void TTS_BitDelay() {
+    unsigned char i = 228;
+    while (--i);
+}
+
+// 软件串口发送单个字节 (带 ULN2003 反相补偿)
+void TTS_SendByte(unsigned char dat) {
+    unsigned char i;
+    bit ea_save = EA;
+    EA = 0; // 关全局中断，消除时钟中断造成的时序抖动
+
+    // 起始位: UART 规范要求为 LOW (0) -> ULN2003 需导通 -> MCU 输出 1
+    TTS_PIN = 1;
+    TTS_BitDelay();
+
+    // 8 位数据位 (低位先行 LSB first)
+    // 数据位 1: UART 规范为 HIGH (1) -> ULN2003 需截止 -> MCU 输出 0
+    // 数据位 0: UART 规范为 LOW  (0) -> ULN2003 需导通 -> MCU 输出 1
+    for (i = 0; i < 8; i++) {
+        TTS_PIN = !(dat & 0x01);
+        dat >>= 1;
+        TTS_BitDelay();
+    }
+
+    // 停止位: UART 规范要求为 HIGH (1) -> ULN2003 需截止 -> MCU 输出 0
+    TTS_PIN = 0;
+    TTS_BitDelay();
+    TTS_BitDelay(); // 额外停止位保证模块平稳采样
+
+    EA = ea_save; // 恢复中断状态
+}
+
+// 发送一串字节到 TTS 模块
+void TTS_SendString(unsigned char *buf, unsigned char len) {
+    unsigned char i;
+    for (i = 0; i < len; i++) {
+        TTS_SendByte(buf[i]);
+    }
+}
+
+// ================ TTS 文本接收缓冲区 ================
+#define TTS_BUF_SIZE 150
+static unsigned char xdata ttsBuf[TTS_BUF_SIZE];
+static unsigned char ttsLen = 0;
+static unsigned char ttsExpectedLen = 0;
+static unsigned int  ttsLedRestore = 0; // 说话灯效持续时间
 
 // ---------------- 全局状态变量 ----------------
 static unsigned char rxBuf[5];
@@ -147,6 +214,30 @@ void myUart1Rxd_callback() {
             beepPatternStep = 1;
             break;
 
+        case CMD_TTS_START:
+            ttsLen = 0;
+            ttsExpectedLen = dh;
+            break;
+
+        case CMD_TTS_DATA:
+            if (ttsLen < TTS_BUF_SIZE) {
+                ttsBuf[ttsLen++] = dh;
+            }
+            if (dl != 0 && ttsLen < TTS_BUF_SIZE) {
+                ttsBuf[ttsLen++] = dl;
+            }
+            break;
+
+        case CMD_TTS_END:
+            if (ttsLen > 0) {
+                currentLedMode = LED_MODE_TALKING;
+                ledAnimStep = 0;
+                TTS_SendString(ttsBuf, ttsLen);
+                ttsLedRestore = 150 + (unsigned int)ttsLen * 12; // 根据字数自适应恢复时间
+                ttsLen = 0;
+            }
+            break;
+
         default:
             break;
     }
@@ -210,6 +301,15 @@ void my10mS_callback() {
     // 振动消抖递减
     if (vibDebounce > 0) {
         vibDebounce--;
+    }
+
+    // TTS 说话灯效自动恢复
+    if (ttsLedRestore > 0) {
+        ttsLedRestore--;
+        if (ttsLedRestore == 0 && currentLedMode == LED_MODE_TALKING) {
+            currentLedMode = LED_MODE_IDLE;
+            ledAnimStep = 0;
+        }
     }
 
     // 预置音效状态机
@@ -337,7 +437,15 @@ void main() {
     EXTInit(enumEXTUltraSonic);  // 加载超声波测距驱动 (P1.0 Echo, P1.1 Trig)
     Uart1Init(115200);
 
-    // 2. 配置串口接收帧头与缓冲区
+    // 初始化 SM 接口引脚
+    // S1 = P4.1 (TXD 到语音模块 RX): 空闲置 0 (ULN2003 截止，模块内部上拉到高电平 = UART 空闲)
+    TTS_PIN = 0;
+    SM_S2   = 0;
+    // S3 与 S4 导通拉低至板载地，如果模块黑线(GND)插在 S3 或 S4 插孔上，则能自动提供回路接地
+    SM_S3   = 1;
+    SM_S4   = 1;
+
+    // 2. 配置串口接收帧头与缓冲区 (定长 5 字节帧)
     SetUart1Rxd(rxBuf, sizeof(rxBuf), rxHead, sizeof(rxHead));
 
     // 3. 注册事件回调函数

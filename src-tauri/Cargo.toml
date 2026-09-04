@@ -26,3 +26,4 @@ chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 serialport = "4.7"
+encoding_rs = "0.8.35"
