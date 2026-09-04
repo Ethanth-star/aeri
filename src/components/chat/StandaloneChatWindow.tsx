@@ -62,7 +62,14 @@ export default function StandaloneChatWindow() {
 
   const ttsEnabled = useAudioStore((s) => s.ttsEnabled);
   const toggleTts = useAudioStore((s) => s.toggleTts);
+  const outputChannel = useAudioStore((s) => s.outputChannel);
+  const toggleOutputChannel = useAudioStore((s) => s.toggleOutputChannel);
+
   const hardwareConnected = useHardwareStore((s) => s.connected);
+  const selectedPort = useHardwareStore((s) => s.selectedPort);
+  const isConnecting = useHardwareStore((s) => s.isConnecting);
+  const connectHardware = useHardwareStore((s) => s.connect);
+  const disconnectHardware = useHardwareStore((s) => s.disconnect);
 
   const [text, setText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -232,30 +239,88 @@ export default function StandaloneChatWindow() {
           </div>
 
           {/* 右侧操作按钮 */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {/* 语音播报开关与试听 */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            {/* 串口快速连接状态徽章 */}
+            <button
+              onClick={() => {
+                if (hardwareConnected) {
+                  disconnectHardware();
+                } else {
+                  connectHardware();
+                }
+              }}
+              title={
+                hardwareConnected
+                  ? `STC-B 板已连接 (${selectedPort || "串口"})，点击断开`
+                  : isConnecting
+                  ? "正在扫描连接串口..."
+                  : "STC-B 串口未连接，点击自动连接"
+              }
+              style={{
+                background: hardwareConnected
+                  ? "rgba(0, 184, 148, 0.15)"
+                  : isConnecting
+                  ? "rgba(255, 159, 67, 0.15)"
+                  : "rgba(235, 77, 75, 0.12)",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 10,
+                color: hardwareConnected
+                  ? "#00b894"
+                  : isConnecting
+                  ? "#ff9f43"
+                  : "#eb4d4b",
+                padding: "3px 6px",
+                borderRadius: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                fontWeight: 600,
+              }}
+            >
+              <span>{hardwareConnected ? "🟢" : isConnecting ? "⏳" : "🔴"}</span>
+              <span>
+                {hardwareConnected
+                  ? selectedPort || "板子已连"
+                  : isConnecting
+                  ? "连接中"
+                  : "未连板子"}
+              </span>
+            </button>
+
+            {/* 语音播报开关与通道切换 */}
             <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              {/* 静音开关 */}
               <button
                 onClick={toggleTts}
-                title={
-                  ttsEnabled
-                    ? `语音播报 (${hardwareConnected ? "SM 硬件模块发声" : "电脑扬声器"}，点击静音)`
-                    : "语音播报 (已静音，点击开启)"
-                }
+                title={ttsEnabled ? "语音播报：已开启 (点击静音)" : "语音播报：已静音 (点击开启)"}
                 style={{
-                  background: ttsEnabled
-                    ? hardwareConnected
-                      ? "rgba(108, 92, 231, 0.15)"
-                      : "rgba(255, 159, 67, 0.15)"
-                    : "rgba(0, 0, 0, 0.04)",
+                  background: ttsEnabled ? "rgba(255, 159, 67, 0.15)" : "rgba(0, 0, 0, 0.04)",
                   border: "none",
                   cursor: "pointer",
                   fontSize: 11,
-                  color: ttsEnabled
-                    ? hardwareConnected
-                      ? "#6c5ce7"
-                      : "#ff9f43"
-                    : "#a4b0be",
+                  color: ttsEnabled ? "#ff9f43" : "#a4b0be",
+                  padding: "3px 5px",
+                  borderRadius: 6,
+                }}
+              >
+                {ttsEnabled ? "🔊" : "🔇"}
+              </button>
+
+              {/* 发声通道切换：SM硬件模块 vs 蓝牙耳机/电脑 */}
+              <button
+                onClick={toggleOutputChannel}
+                title={`发声通道：${outputChannel === "hardware" ? "SM硬件模块 (小喇叭)" : "蓝牙耳机/电脑声卡"} (点击切换)`}
+                style={{
+                  background:
+                    outputChannel === "hardware"
+                      ? "rgba(108, 92, 231, 0.15)"
+                      : "rgba(9, 132, 227, 0.15)",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 9.5,
+                  fontWeight: 600,
+                  color: outputChannel === "hardware" ? "#6c5ce7" : "#0984e3",
                   padding: "3px 6px",
                   borderRadius: 6,
                   display: "flex",
@@ -263,16 +328,26 @@ export default function StandaloneChatWindow() {
                   gap: 2,
                 }}
               >
-                <span>{ttsEnabled ? "🔊" : "🔇"}</span>
-                <span style={{ fontSize: 9.5, fontWeight: 600 }}>
-                  {hardwareConnected ? "SM硬件模块" : "甜妹音"}
-                </span>
+                <span>{outputChannel === "hardware" ? "SM模块" : "耳机/PC"}</span>
               </button>
 
+              {/* 试听测试按钮 */}
               {ttsEnabled && (
                 <button
-                  onClick={() => useAudioStore.getState().speak("主人好呀，我是Aeri！")}
-                  title={hardwareConnected ? "测试 SM 硬件语音模块发声" : "测试电脑扬声器发声"}
+                  onClick={() => {
+                    if (outputChannel === "hardware" && !hardwareConnected) {
+                      alert("⚠️ 当前设置为走【SM硬件模块】，但 STC-B 串口尚未连接！\n\n请先点击左边的【未连板子】按钮连接串口，或进入系统设置连接 STC-B。");
+                      return;
+                    }
+                    useAudioStore.getState().speak("小主人好呀，我是Aeri！");
+                  }}
+                  title={
+                    outputChannel === "hardware"
+                      ? hardwareConnected
+                        ? "测试 SM 硬件语音模块喇叭发声"
+                        : "请先连接串口"
+                      : "测试电脑扬声器/蓝牙耳机发声"
+                  }
                   style={{
                     background: "rgba(0, 184, 148, 0.12)",
                     border: "none",
