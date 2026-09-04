@@ -4,6 +4,7 @@ import { streamChat, type ChatConfig, type ChatMessage } from "../systems/ai/cha
 import { usePetStore } from "./usePetStore";
 import { useMemoryStore } from "./useMemoryStore";
 import { extractMemoriesFromConversation } from "../systems/memory/engine";
+import { useAudioStore } from "./useAudioStore";
 
 interface ChatState {
   messages: ChatMessage[];
@@ -92,6 +93,9 @@ export const useChatStore = create<ChatState & ChatActions>()(
             messages: [...newMessages, assistantMsg],
           });
 
+          // 甜妹音语音合成朗读
+          useAudioStore.getState().speak(reply);
+
           // AI 回复完成 → 积极聊天事件
           usePetStore.getState().emitEmotionEvent({ type: "chat_positive" });
 
@@ -141,9 +145,15 @@ export const useChatStore = create<ChatState & ChatActions>()(
 
       setCity: (city) => set({ city }),
 
-      clearReply: () => set({ currentReply: "" }),
+      clearReply: () => {
+        useAudioStore.getState().stop();
+        set({ currentReply: "" });
+      },
 
-      clearMessages: () => set({ messages: [], currentReply: "" }),
+      clearMessages: () => {
+        useAudioStore.getState().stop();
+        set({ messages: [], currentReply: "" });
+      },
 
       addAssistantMessage: (text: string) => {
         const assistantMsg: ChatMessage = {
@@ -156,6 +166,7 @@ export const useChatStore = create<ChatState & ChatActions>()(
           currentReply: text,
           messages: [...state.messages, assistantMsg],
         }));
+        useAudioStore.getState().speak(text);
       },
     }),
     {

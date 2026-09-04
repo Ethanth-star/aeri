@@ -4,6 +4,7 @@ import { emit } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { useChatStore } from "../../stores/useChatStore";
 import { useProfileStore } from "../../stores/useProfileStore";
+import { useAudioStore } from "../../stores/useAudioStore";
 import ProfileModal from "../overlays/ProfileModal";
 import aeriImg from "../../assets/images/puppy.png";
 
@@ -57,6 +58,9 @@ export default function StandaloneChatWindow() {
   const userAvatar = useProfileStore((s) => s.userAvatar);
   const petName = useProfileStore((s) => s.petName);
   const openProfileModal = useProfileStore((s) => s.openProfileModal);
+
+  const ttsEnabled = useAudioStore((s) => s.ttsEnabled);
+  const toggleTts = useAudioStore((s) => s.toggleTts);
 
   const [text, setText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -227,6 +231,27 @@ export default function StandaloneChatWindow() {
 
           {/* 右侧操作按钮 */}
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {/* 甜妹语音播报开关 */}
+            <button
+              onClick={toggleTts}
+              title={ttsEnabled ? "语音播报：甜妹音 (已开启，点击静音)" : "语音播报 (已静音，点击开启甜妹音)"}
+              style={{
+                background: ttsEnabled ? "rgba(255, 159, 67, 0.15)" : "rgba(0, 0, 0, 0.04)",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 11,
+                color: ttsEnabled ? "#ff9f43" : "#a4b0be",
+                padding: "3px 6px",
+                borderRadius: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              <span>{ttsEnabled ? "🔊" : "🔇"}</span>
+              <span style={{ fontSize: 9.5, fontWeight: 600 }}>甜妹音</span>
+            </button>
+
             {/* 个人档案设置 */}
             <button
               onClick={openProfileModal}
